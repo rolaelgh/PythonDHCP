@@ -1,4 +1,27 @@
 import socket
+import threading
+
+# Function to handle a client
+def handle_client(client_socket):
+    # Send a welcome message to the client
+    client_socket.send("Welcome to the server!".encode())
+
+    while True:
+        # Receive data from the client
+        data = client_socket.recv(1024).decode()
+        if not data:
+            break
+        print(f"Client says: {data}")
+
+        # Send a response to the client
+        response = "Thanks for the message!"
+        client_socket.send(response.encode())
+
+    # Close the connection with the client
+    client_socket.close()
+
+# Rest of the server code remains unchanged
+
 
 # Create a socket object
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,18 +36,12 @@ server_socket.listen()
 
 print(f"Server listening on {host}:{port}")
 
-# Accept a connection from a client
-client_socket, client_address = server_socket.accept()
-print(f"Connection from {client_address}")
+# Infinite loop to accept connections from clients
+while True:
+    # Accept a connection from a client
+    client_socket, client_address = server_socket.accept()
+    print(f"Connection from {client_address}")
 
-# Send data to the client
-message = "Hello, client! Welcome to the server."
-client_socket.send(message.encode())
-
-# Receive data from the client
-data = client_socket.recv(1024).decode()
-print(f"Client sent: {data}")
-
-# Close the connection
-client_socket.close()
-server_socket.close()
+    # Create a new thread to handle the client
+    client_handler = threading.Thread(target=handle_client, args=(client_socket,))
+    client_handler.start()
