@@ -10,7 +10,7 @@ def receive_messages(client_socket):
 
 def send_messages(client_socket):
     while True:
-        message = input("Enter your message: ")
+        message = input("Enter your message: \n")
         client_socket.send(message.encode())
         if message.lower() == 'exit':
             break
@@ -24,8 +24,9 @@ port = 12345
 client_socket.connect((host, port))
 
 # Create threads for sending and receiving messages
-receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
 send_thread = threading.Thread(target=send_messages, args=(client_socket,))
+receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+
 
 # Start the threads
 receive_thread.start()

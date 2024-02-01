@@ -14,14 +14,11 @@ def handle_client(client_socket):
         print(f"Client says: {data}")
 
         # Send a response to the client
-        response = "Thanks for the message!"
+        response = input("Enter your response: ")  # Get response from the server user
         client_socket.send(response.encode())
 
     # Close the connection with the client
     client_socket.close()
-
-# Rest of the server code remains unchanged
-
 
 # Create a socket object
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -36,11 +33,17 @@ server_socket.listen()
 
 print(f"Server listening on {host}:{port}")
 
+# List to store client sockets
+clients = []
+
 # Infinite loop to accept connections from clients
 while True:
     # Accept a connection from a client
     client_socket, client_address = server_socket.accept()
     print(f"Connection from {client_address}")
+
+    # Add the new client socket to the list
+    clients.append(client_socket)
 
     # Create a new thread to handle the client
     client_handler = threading.Thread(target=handle_client, args=(client_socket,))
