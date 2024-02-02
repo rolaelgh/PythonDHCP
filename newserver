@@ -1,0 +1,103 @@
+import socket
+import threading
+import time
+
+# Class to manage the IP addresses and their lease times
+class IPAddressPool:
+    def __init__(self):
+        self.ip_pool = ['192.168.1.' + str(i) for i in range(2, 255)]  # Example range
+        self.ip_lease_times = {}  # Dictionary to store lease times
+
+    def lease_ip(self):
+        if self.ip_pool:
+            ip_address = self.ip_pool.pop(0)
+            self.ip_lease_times[ip_address] = time.time() + 86400  # Lease for 24 hours
+            return ip_address
+        else:
+            return None  # No IP addresses available
+
+    def renew_lease(self, ip_address):
+        if ip_address in self.ip_lease_times:
+            self.ip_lease_times[ip_address] = time.time() + 86400  # Renew lease for 24 hours
+            return True
+        return False
+
+    def release_ip(self, ip_address):
+        if ip_address in self.ip_lease_times:
+            del self.ip_lease_times[ip_address]
+            self.ip_pool.insert(0, ip_address)  # Add back to the pool
+
+    def check_status(self, ip_address):
+        if ip_address in self.ip_lease_times:
+            if time.time() < self.ip_lease_times[ip_address]:
+                return "ASSIGNED"
+            else:
+                self.release_ip(ip_address)  # Lease expired
+        return "AVAILABLE"
+
+# Function to handle a client
+def handle_client(client_socket, ip_pool):
+    while True:
+        try:
+            # Receive data from the client
+            data = client_socket.recv(1024).decode()
+            if not data:
+                break
+            command, *args = data.split()
+
+            # Process the DHCP commands
+            if command == "ASK":
+                ip_address = ip_pool.lease_ip()
+                response = f"OFFER {ip_address if ip_address else 'NO IP AVAILABLE'}"
+            elif command == "RENEW":
+                success = ip_pool.renew_lease(args[0])
+                response = f"RENEWED {args[0]}" if success else "NOT FOUND"
+            elif command == "RELEASE":
+                ip_pool.release_ip(args[0])
+                response = f"RELEASED {args[0]}"
+            elif command == "STATUS":
+                status = ip_pool.check_status(args[0])
+                response = f"{args[0]} {status}"
+            else:
+                response = "INVALID COMMAND"
+
+            # Send the response to the client
+            client_socket.send(response.encode())
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
+
+    # Close the connection with the client
+    client_socket.close()
+
+# Create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Bind the socket to a specific address and port
+host = '127.0.0.1'  # localhost
+port = 12345
+server_socket.bind((host, port))
+
+# Listen for incoming connections
+server_socket.listen()
+print(f"Server listening on {host}:{port}")
+
+# Initialize the IP address pool
+ip_pool = IPAddressPool()
+
+# List to store client sockets
+clients = []
+
+# Infinite loop to accept connections from clients
+while True:
+    # Accept a connection from a client
+    client_socket, client_address = server_socket.accept()
+    print(f"Connection from {client_address}")
+
+    # Add the new client socket to the list
+    clients.append(client_socket)
+
+    # Create a new thread to handle the client, passing the IP address pool as well
+    client_handler = threading.Thread(target=handle_client, args=(client_socket, ip_pool))
+    client_handler.start()
