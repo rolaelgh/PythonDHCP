@@ -1,0 +1,57 @@
+import socket
+import threading
+
+def receive_messages(client_socket):
+    while True:
+        try:
+            data = client_socket.recv(1024).decode()
+            if not data:
+                break
+            print(f"Server says: {data}")
+        except:
+            # Handle any exception, which typically means the server is no longer reachable
+            print("Connection to the server has been lost.")
+            break
+
+def send_dhcp_request(client_socket, message):
+    client_socket.send(message.encode())
+    if message.lower() == 'exit':
+        return True
+    return False
+
+# Create a socket object
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Connect to the server
+host = '127.0.0.1'  # localhost
+port = 12345
+try:
+    client_socket.connect((host, port))
+except socket.error as e:
+    print(f"Cannot connect to server: {e}")
+    exit(1)
+
+# Start the receiving thread
+receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
+receive_thread.start()
+
+# Example DHCP requests
+dhcp_requests = [
+    "ASK",
+    "RENEW 192.168.1.10",
+    "RELEASE 192.168.1.10",
+    "STATUS 192.168.1.10",
+    "exit"
+]
+
+# Send DHCP requests
+for request in dhcp_requests:
+    exit_requested = send_dhcp_request(client_socket, request)
+    if exit_requested:
+        break
+
+# Wait for the receiving thread to finish
+receive_thread.join()
+
+# Close the connection
+client_socket.close()
